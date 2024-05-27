@@ -13,6 +13,6 @@ app.get("/all", auth_1.adminOnly, user_1.getAllUsers);
 app.route("/:id").get(user_1.getUser).delete(auth_1.adminOnly, user_1.deleteUser);
 // these 2 lines below are written as one
 // app.get("/:id", getUser)
-// app.delete("//:id",deleteUser)
+// app.delete("/:id",deleteUser)
 // in req.params.id in getuser controller id will be replace by word which is written after :
 exports.default = app;

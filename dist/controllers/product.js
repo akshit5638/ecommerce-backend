@@ -8,6 +8,8 @@ const error_1 = require("../middlewares/error");
 const utility_class_1 = __importDefault(require("../utils/utility-class"));
 const product_1 = require("../models/product");
 const fs_1 = require("fs");
+const app_1 = require("../app");
+const features_1 = require("../utils/features");
 exports.deleteProduct = (0, error_1.TryCatch)(async (req, res, next) => {
     const product = await product_1.Product.findById(req.params.id);
     if (!product)
@@ -16,20 +18,39 @@ exports.deleteProduct = (0, error_1.TryCatch)(async (req, res, next) => {
         console.log("Product Photo Deleted");
     });
     await product.deleteOne();
+    (0, features_1.invalidateCache)({
+        product: true,
+        productId: String(product._id),
+        admin: true,
+    });
     return res.status(200).json({
         success: true,
         message: "Product Deleted Successfully",
     });
 });
 exports.getAdminProducts = (0, error_1.TryCatch)(async (req, res, next) => {
-    const products = await product_1.Product.find({});
+    // const products = await Product.find({});
+    let products;
+    if (app_1.myCache.has("all-products"))
+        products = JSON.parse(app_1.myCache.get("all-products"));
+    else {
+        products = await product_1.Product.find({});
+        app_1.myCache.set("all-products", JSON.stringify(products));
+    }
     return res.status(200).json({
         success: true,
         products,
     });
 });
 exports.getAllCategories = (0, error_1.TryCatch)(async (req, res, next) => {
-    const categories = await product_1.Product.distinct("category");
+    let categories;
+    if (app_1.myCache.has("categories"))
+        categories = JSON.parse(app_1.myCache.get("categories"));
+    else {
+        categories = await product_1.Product.distinct("category");
+        app_1.myCache.set("categories", JSON.stringify(categories));
+    }
+    // const categories = await Product.distinct("category");
     // distinct(field) gives all distinct values of field present
     return res.status(200).json({
         success: true,
@@ -87,14 +108,31 @@ exports.getAllProducts = (0, error_1.TryCatch)(async (req, res, next) => {
     });
 });
 exports.getSingleProduct = (0, error_1.TryCatch)(async (req, res, next) => {
-    const product = await product_1.Product.findById(req.params.id);
+    // const product = await Product.findById(req.params.id);
+    let product;
+    const id = req.params.id;
+    if (app_1.myCache.has(`product-${id}`))
+        product = JSON.parse(app_1.myCache.get(`product-${id}`));
+    else {
+        product = await product_1.Product.findById(id);
+        if (!product)
+            return next(new utility_class_1.default("Product Not Found", 404));
+        app_1.myCache.set(`product-${id}`, JSON.stringify(product));
+    }
     return res.status(200).json({
         success: true,
         product,
     });
 });
 exports.getlatestProducts = (0, error_1.TryCatch)(async (req, res, next) => {
-    const products = await product_1.Product.find({}).sort({ createdAt: -1 }).limit(5);
+    let products;
+    if (app_1.myCache.has("latest-products"))
+        products = JSON.parse(app_1.myCache.get("latest-products"));
+    else {
+        products = await product_1.Product.find({}).sort({ createdAt: -1 }).limit(5);
+        app_1.myCache.set("latest-products", JSON.stringify(products));
+    }
+    // const products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
     // -1 means desending order and limit means how many product to show so by above line we will get latest 5 product
     return res.status(200).json({
         success: true,
@@ -124,6 +162,7 @@ exports.newProduct = (0, error_1.TryCatch)(async (req, res, next) => {
     });
     // console.log(3);
     // invalidateCache({ product: true, admin: true });
+    (0, features_1.invalidateCache)({ product: true, admin: true });
     return res.status(201).json({
         success: true,
         message: "Product Created Successfully",
@@ -152,6 +191,11 @@ exports.updateProduct = (0, error_1.TryCatch)(async (req, res, next) => {
     if (category)
         product.category = category;
     await product.save();
+    (0, features_1.invalidateCache)({
+        product: true,
+        productId: String(product._id),
+        admin: true,
+    });
     return res.status(200).json({
         success: true,
         message: "Product Updated Successfully",

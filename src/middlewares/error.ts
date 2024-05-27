@@ -4,6 +4,7 @@ import { ControllerType } from '../types/types';
 export const errorMiddleware = (err: ErrorHandler, req: Request, res: Response, next: NextFunction) => {
   err.message = err.message || "Internal server error";
   err.statusCode ||= 500;
+  if (err.name === "CastError") err.message = "Invalid ID";
   return res.status(err.statusCode).json({
     success: true,
     message: err.message

@@ -5,6 +5,8 @@ import { Request } from "express";
 import ErrorHandler from "../utils/utility-class";
 import { Product } from "../models/product";
 import { rm } from "fs";
+import { myCache } from "../app";
+import { invalidateCache } from "../utils/features";
 
 export const deleteProduct = TryCatch(async (req, res, next) => {
     const product = await Product.findById(req.params.id);
@@ -15,22 +17,40 @@ export const deleteProduct = TryCatch(async (req, res, next) => {
     });
 
     await product.deleteOne();
-
+    invalidateCache({
+        product: true,
+        productId: String(product._id),
+        admin: true,
+    });
     return res.status(200).json({
         success: true,
         message: "Product Deleted Successfully",
     });
 });
 export const getAdminProducts = TryCatch(async (req, res, next) => {
-    const products = await Product.find({});
+    // const products = await Product.find({});
+    let products;
+    if (myCache.has("all-products"))
+        products = JSON.parse(myCache.get("all-products") as string);
+    else {
+        products = await Product.find({});
+        myCache.set("all-products", JSON.stringify(products));
+    }
     return res.status(200).json({
         success: true,
         products,
     });
 });
 export const getAllCategories = TryCatch(async (req, res, next) => {
+    let categories;
 
-    const categories = await Product.distinct("category");
+    if (myCache.has("categories"))
+        categories = JSON.parse(myCache.get("categories") as string);
+    else {
+        categories = await Product.distinct("category");
+        myCache.set("categories", JSON.stringify(categories));
+    }
+    // const categories = await Product.distinct("category");
 
     // distinct(field) gives all distinct values of field present
     return res.status(200).json({
@@ -91,7 +111,18 @@ export const getAllProducts = TryCatch(async (req: Request<{}, {}, {}, SearchReq
     });
 });
 export const getSingleProduct = TryCatch(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+    // const product = await Product.findById(req.params.id);
+    let product;
+    const id = req.params.id;
+    if (myCache.has(`product-${id}`))
+        product = JSON.parse(myCache.get(`product-${id}`) as string);
+    else {
+        product = await Product.findById(id);
+
+        if (!product) return next(new ErrorHandler("Product Not Found", 404));
+
+        myCache.set(`product-${id}`, JSON.stringify(product));
+    }
     return res.status(200).json({
         success: true,
         product,
@@ -99,7 +130,14 @@ export const getSingleProduct = TryCatch(async (req, res, next) => {
 
 });
 export const getlatestProducts = TryCatch(async (req, res, next) => {
-    const products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
+    let products;
+    if (myCache.has("latest-products"))
+        products = JSON.parse(myCache.get("latest-products") as string);
+    else {
+        products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
+        myCache.set("latest-products", JSON.stringify(products));
+    }
+    // const products = await Product.find({}).sort({ createdAt: -1 }).limit(5);
     // -1 means desending order and limit means how many product to show so by above line we will get latest 5 product
     return res.status(200).json({
         success: true,
@@ -132,7 +170,7 @@ export const newProduct = TryCatch(async (req: Request<{}, {}, NewProductRequest
     });
     // console.log(3);
     // invalidateCache({ product: true, admin: true });
-
+    invalidateCache({ product: true, admin: true })
     return res.status(201).json({
         success: true,
         message: "Product Created Successfully",
@@ -160,7 +198,11 @@ export const updateProduct = TryCatch(async (req, res, next) => {
     if (category) product.category = category;
 
     await product.save();
-
+    invalidateCache({
+        product: true,
+        productId: String(product._id),
+        admin: true,
+    });
 
     return res.status(200).json({
         success: true,

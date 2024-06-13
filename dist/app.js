@@ -18,6 +18,7 @@ const stats_js_1 = __importDefault(require("./routes/stats.js"));
 const error_1 = require("./middlewares/error");
 const dotenv_1 = require("dotenv");
 const morgan_1 = __importDefault(require("morgan"));
+const cors_1 = __importDefault(require("cors"));
 (0, dotenv_1.config)({
     path: "./.env",
 });
@@ -29,6 +30,7 @@ const app = (0, express_1.default)();
 //using routes
 app.use(express_1.default.json()); // This middleware is responsible for parsing incoming request bodies in JSON format. ITS postion is important as it is middleware and should be used before all routes
 app.use((0, morgan_1.default)("dev"));
+app.use((0, cors_1.default)());
 app.use('/api/v1/user', user_1.default);
 app.use('/api/v1/product', product_1.default);
 app.use('/api/v1/order', order_js_1.default);

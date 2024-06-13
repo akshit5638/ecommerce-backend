@@ -11,11 +11,11 @@ const error_js_1 = require("./error.js");
 exports.adminOnly = (0, error_js_1.TryCatch)(async (req, res, next) => {
     const { id } = req.query;
     if (!id)
-        return next(new utility_class_js_1.default("Saale Login Kr phle", 401));
+        return next(new utility_class_js_1.default("please login first", 401));
     const user = await user_js_1.User.findById(id);
     if (!user)
-        return next(new utility_class_js_1.default("Saale Fake ID Deta Hai", 401));
+        return next(new utility_class_js_1.default("invalid! user not found", 401));
     if (user.role !== "admin")
-        return next(new utility_class_js_1.default("Saale Aukat Nhi Hai Teri", 403));
+        return next(new utility_class_js_1.default("access denied", 403));
     next();
 });
